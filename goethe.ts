@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import * as fs from "fs";
 import type { Page } from "playwright";
 
-const username = "Lnicemonkozhi@gmail.com";
+const username = "nicemonkozhi@gmail.com";
 const password = "Nicemon@12345";
 
 const examURL =
@@ -19,8 +19,11 @@ async function main() {
 
     // === CLICK: Select modules ===
     console.log("About to click module_selection");
-    await page.locator("text=Select modules").click();
+    // await page.locator("text=Select modules").click();
+    await page.getByText(/Select modules/i).click();
     console.log("clicked module_selection");
+
+    await page.getByText(/Accept All/i).click();
 
     // === Fetch popup HTML ===
     console.log("About to find module_selection popup");
@@ -33,6 +36,37 @@ async function main() {
 
     // === Click Next button ===
     await page.getByRole('button', { name: 'continue' }).nth(1).click();
+    await page.getByText('Book for myself').click();
+
+    // === LOGIN FORM ===
+    await page.waitForSelector('input[type="email"], input[name="email"]', {
+        timeout: 15000,
+    });
+
+    console.log("Login form visible");
+
+    // Fill email
+    await page.locator('input[type="email"], input[name="email"]').fill(username);
+
+    // Fill password
+    await page.locator('input[type="password"]').fill(password);
+
+    // Click LOGIN button
+    await page.getByRole('button', { name: /log in/i }).click();
+
+    await page.waitForLoadState("networkidle");
+
+    const isDiscardOtherBookingVisible = await page.getByText(/discard other booking/i).isVisible();
+
+    console.log("isDiscardOtherBookingVisible", isDiscardOtherBookingVisible);
+
+    if (isDiscardOtherBookingVisible) {
+        await page.getByText(/discard other booking/i).click();
+        await page.getByText(/continue/i).nth(1).click();
+    }
+    await page.waitForLoadState("networkidle");
+
+    await page.getByText(/continue/i).nth(1).click();
 
     // === Save debug ===
     await saveDebug(page, "module_selection");
