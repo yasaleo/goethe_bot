@@ -17,22 +17,36 @@ async function main() {
     await page.goto(examURL);
     console.log("Opened exam page");
 
-    // === CLICK: Select modules ===
-    console.log("About to click module_selection");
-    // await page.locator("text=Select modules").click();
-    await page.getByText(/Select modules/i).click();
-    console.log("clicked module_selection");
+    await page.waitForSelector(
+        'div:has-text("cookies"), div:has-text("privacy")',
+        { state: 'visible', timeout: 15000 }
+    );
+
+    console.log("Cookie banner visible");
 
     await page.getByText(/Accept All/i).click();
 
+    await page.waitForLoadState("load");
+    await page.waitForTimeout(500);
+
+    // === CLICK: Select modules ===
+    console.log("About to click module_selection");
+
+    const selectModules = page.getByText(/Select modules/i);
+    await selectModules.waitFor({ state: "visible" });
+    await selectModules.click();
+
+    // const isSMvisisble = await page.getByText(/Select modules/i).isVisible();
+    // console.log(isSMvisisble, " isSMvisisble");
+    // await page.getByText(/Select modules/i).click().then(() => {
+    //     console.log("clicked module_selection");
+    // });
+    console.log("clicked module_selection");
+
+    // await page.getByText(/Accept All/i).click();
+
     // === Fetch popup HTML ===
     console.log("About to find module_selection popup");
-    const html = await page.getByText('Booking Selection Selection').innerHTML();
-    console.log("Found popup HTML:");
-    console.log(html);
-
-    const fullPage = await page.content();
-    console.log(fullPage);
 
     // === Click Next button ===
     await page.getByRole('button', { name: 'continue' }).nth(1).click();
