@@ -10,7 +10,7 @@ const examURL =
 
 const MODULE_PREFERENCES = {
     listening: true,
-    reading: false,
+    reading: true,
     writing: false,
     speaking: false,
 };
@@ -22,19 +22,19 @@ type ModuleName =
     | "speaking";
 
 type ModuleAvailability =
-  | "available"
-  | "few_places_left"
-  | "fully_booked";
+    | "available"
+    | "few_places_left"
+    | "fully_booked";
 
 
 
 async function main() {
     const browser = await chromium.launch({
         headless: false,
-        // args: ["--start-maximized"], 
+        args: ["--start-maximized"], 
     });
     const context = await browser.newContext({
-        // viewport: null,
+        viewport: null,
     });
     const page = await context.newPage();
 
@@ -68,42 +68,42 @@ async function main() {
     // === Customize module selection ===
     await selectAvailableModules(page, MODULE_PREFERENCES);
 
-    // // === Click Next button ===
-    // await page.getByRole('button', { name: 'continue' }).nth(1).click();
-    // await page.getByText('Book for myself').click();
+    // === Click Next button ===
+    await page.getByRole('button', { name: 'continue' }).nth(1).click();
+    await page.getByText('Book for myself').click();
 
-    // // === LOGIN FORM ===
-    // await page.waitForSelector('input[type="email"], input[name="email"]', {
-    //     timeout: 15000,
-    // });
+    // === LOGIN FORM ===
+    await page.waitForSelector('input[type="email"], input[name="email"]', {
+        timeout: 15000,
+    });
 
-    // console.log("Login form visible");
+    console.log("Login form visible");
 
-    // // Fill email
-    // await page.locator('input[type="email"], input[name="email"]').fill(username);
+    // Fill email
+    await page.locator('input[type="email"], input[name="email"]').fill(username);
 
-    // // Fill password
-    // await page.locator('input[type="password"]').fill(password);
+    // Fill password
+    await page.locator('input[type="password"]').fill(password);
 
-    // // Click LOGIN button
-    // await page.getByRole('button', { name: /log in/i }).click();
+    // Click LOGIN button
+    await page.getByRole('button', { name: /log in/i }).click();
 
-    // await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("networkidle");
 
-    // const isDiscardOtherBookingVisible = await page.getByText(/discard other booking/i).isVisible();
+    const isDiscardOtherBookingVisible = await page.getByText(/discard other booking/i).isVisible();
 
-    // console.log("isDiscardOtherBookingVisible", isDiscardOtherBookingVisible);
+    console.log("isDiscardOtherBookingVisible", isDiscardOtherBookingVisible);
 
-    // if (isDiscardOtherBookingVisible) {
-    //     await page.getByText(/discard other booking/i).click();
-    //     await page.getByText(/continue/i).nth(1).click();
-    // }
-    // await page.waitForLoadState("networkidle");
+    if (isDiscardOtherBookingVisible) {
+        await page.getByText(/discard other booking/i).click();
+        await page.getByText(/continue/i).nth(1).click();
+    }
+    await page.waitForLoadState("networkidle");
 
-    // await page.getByText(/continue/i).nth(1).click();
+    await page.getByText(/continue/i).nth(1).click();
 
-    // // === Save debug ===
-    // await saveDebug(page, "module_selection");
+    // === Save debug ===
+    await saveDebug(page, "module_selection");
 
     // await browser.close();
 }
@@ -116,7 +116,7 @@ async function saveDebug(page: Page, name: string) {
 
 async function waitForSelectModulesWithReload(
     page: Page,
-    maxRetries = 5
+    maxRetries = 15
 ) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         console.log(`Checking for Select modules (attempt ${attempt}/${maxRetries})`);
@@ -142,58 +142,25 @@ async function selectAvailableModules(
     preferences: Record<string, boolean>
 ) {
 
-  const stat = await   getModuleAvailability(page, "reading");
+    for (const [moduleName, enabled] of Object.entries(preferences)) {
+        if (enabled) continue;
 
-  console.log("stat===>> ", stat);
+        const loc = page.getByRole('link', { name: `${moduleName} ${moduleName.toUpperCase()} Details` })
 
-    const loc = page.getByRole('link', { name: 'listening Listening Details' })
+        const lisbox = await loc.boundingBox();
 
-    const lisbox = await loc.boundingBox();
-
-    if (!lisbox) throw new Error("Row not visible");
-
-
-    await clickWithHighlight(page, lisbox.x - 21, lisbox.y + 4);
+        if (!lisbox) throw new Error("Row not visible");
 
 
-    console.log("Clicked checkbox region for LISTENING");
+        await clickWithHighlight(page, lisbox.x - 21, lisbox.y + 5);
 
 
-    // for (const [moduleName, shouldSelect] of Object.entries(preferences)) {
-    //     if (!shouldSelect) continue;
+        console.log("Clicked checkbox region & tried deselecting for :", moduleName.toUpperCase());
 
-    //     // Each module row contains the module name text
-    //     const moduleRow = page.locator(
-    //         `div:has-text("${moduleName.toUpperCase()}")`
-    //     ).first();
+    }
 
-    //     // Checkbox inside that row (only exists if selectable)
-    //     const checkbox = moduleRow.locator('input[type="checkbox"]');
 
-    //     const cont = await checkbox.count();
 
-    //     console.log("count===>> ", cont);
-
-    //     const checkboxExists = cont > 0;
-    //     const checkboxVisible = checkboxExists
-    //         ? await checkbox.isVisible().catch(() => false)
-    //         : false;
-
-    //     if (!checkboxVisible) {
-    //         console.log(`⚠️ ${moduleName} not selectable (probably fully booked)`);
-    //         continue;
-    //     }
-
-    //     const isChecked = await checkbox.isChecked();
-
-    //     if (!isChecked) {
-    //         await checkbox.check();
-    //         console.log(`✅ Selected ${moduleName}`);
-    //         await page.waitForTimeout(300); // human-like pause
-    //     } else {
-    //         console.log(`ℹ️ ${moduleName} already selected`);
-    //     }
-    // }
 }
 
 async function clickWithHighlight(
