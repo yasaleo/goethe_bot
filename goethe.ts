@@ -15,6 +15,10 @@ const MODULE_PREFERENCES = {
     speaking: false,
 };
 
+const MAX_RESTARTS = 5;
+
+// ===== DO NOT EDIT BELOW THIS LINE ===== 
+
 type ModuleName =
     | "listening"
     | "reading"
@@ -25,6 +29,8 @@ type ModuleAvailability =
     | "available"
     | "few_places_left"
     | "fully_booked";
+
+let restartCount = 0;
 
 
 
@@ -61,6 +67,13 @@ async function main() {
     await selectModules.click();
 
     console.log("clicked module_selection");
+
+    await page.waitForTimeout(1000);
+
+    if (await isHighDemandErrorPage(page)) {
+        await restartBookingFlow(page);
+        return main();
+    }
 
     // === Fetch popup HTML ===
     console.log("About to find module_selection popup");
@@ -217,6 +230,30 @@ async function getModuleAvailability(
 
     return "available";
 }
+
+async function isHighDemandErrorPage(page: Page): Promise<boolean> {
+    const errorText = page.getByText(
+        /due to very high demand, the product you have chosen cannot be booked/i
+    );
+
+    return await errorText.isVisible().catch(() => false);
+}
+
+async function restartBookingFlow(page: Page) {
+    restartCount++;
+
+    if (restartCount > MAX_RESTARTS) {
+        throw new Error("Too many high-demand errors — stopping automation");
+    }
+
+    console.warn(
+        `⚠️ High demand error (${restartCount}/${MAX_RESTARTS}) — restarting`
+    );
+
+    await page.goto(examURL, { waitUntil: "load" });
+    await page.waitForTimeout(1500 + Math.random() * 1500);
+}
+
 
 
 
