@@ -6,7 +6,7 @@ const username = "nicemonkozhi@gmail.com";
 const password = "Nicemon@12345";
 
 const examURL =
-    "https://www.goethe.de/ins/in/en/spr/prf/gzb2.cfm?examId=0B5CCAD2D0DFF8858C8957CA2FCD5F022FD68975EB90A8E35DF505FF8F9598AA8498BACBDA15781FD8BBA8DE05D04983BCF2DACB558D04C6A228841F9ED4CAE6";
+    "https://www.goethe.de/ins/in/en/spr/prf/gzb2.cfm?examId=5B0E9FD2D0DAF3D08C895E967DC95A012CD68B75BF97FAE00CF554A884C7C2FCDFC3BBCFDD41794AD4E7FD8657D14C80BAF3D896058357C9F629D614CEDECCE9";
 
 const MODULE_PREFERENCES = {
     listening: true,
@@ -15,7 +15,7 @@ const MODULE_PREFERENCES = {
     speaking: false,
 };
 
-const MAX_RESTARTS = 5;
+const MAX_RESTARTS = 200;
 
 // ===== DO NOT EDIT BELOW THIS LINE ===== 
 
@@ -37,10 +37,10 @@ let restartCount = 0;
 async function main() {
     const browser = await chromium.launch({
         headless: false,
-        args: ["--start-maximized"], 
+        // args: ["--start-maximized"], 
     });
     const context = await browser.newContext({
-        viewport: null,
+        // viewport: null,
     });
     const page = await context.newPage();
 
@@ -70,9 +70,9 @@ async function main() {
 
     await page.waitForTimeout(1000);
 
-    if (await isHighDemandErrorPage(page)) {
-        await restartBookingFlow(page);
-        return main();
+    if (
+        await isHighDemandErrorPage(page)) {
+        await recoverFromHighDemand(page);
     }
 
     // === Fetch popup HTML ===
@@ -129,7 +129,7 @@ async function saveDebug(page: Page, name: string) {
 
 async function waitForSelectModulesWithReload(
     page: Page,
-    maxRetries = 15
+    maxRetries = 200
 ) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         console.log(`Checking for Select modules (attempt ${attempt}/${maxRetries})`);
@@ -239,20 +239,38 @@ async function isHighDemandErrorPage(page: Page): Promise<boolean> {
     return await errorText.isVisible().catch(() => false);
 }
 
-async function restartBookingFlow(page: Page) {
-    restartCount++;
+async function recoverFromHighDemand(page: Page) {
+    while (true) {
+        restartCount++;
 
-    if (restartCount > MAX_RESTARTS) {
-        throw new Error("Too many high-demand errors — stopping automation");
+        if (restartCount > MAX_RESTARTS) {
+            throw new Error("Too many high-demand errors — stopping automation");
+        }
+
+        console.warn(
+            `⚠️ High demand error (${restartCount}/${MAX_RESTARTS}) — attempting recovery`
+        );
+
+        // Reload page
+        await page.reload({ waitUntil: "load" });
+        await page.waitForTimeout(1000 + Math.random() * 1000);
+
+        // Case 1: still on error page → retry
+        if (await isHighDemandErrorPage(page)) {
+            continue;
+        }
+
+        // Case 2: modules visible → success
+        const selectModules = page.getByText(/Available modules/i);
+        if (await selectModules.isVisible().catch(() => false)) {
+            console.log("✅ Recovery successful — modules are visible");
+            return;
+        }
+
+        // Otherwise: transient state → retry
     }
-
-    console.warn(
-        `⚠️ High demand error (${restartCount}/${MAX_RESTARTS}) — restarting`
-    );
-
-    await page.goto(examURL, { waitUntil: "load" });
-    await page.waitForTimeout(1500 + Math.random() * 1500);
 }
+
 
 
 
